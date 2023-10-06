@@ -3,10 +3,10 @@
 	<view class="content">
 		<pop-up ref="popup">
 			<view :style="'overflow:scroll;width:'+popWidth+'px;height:'+popHeight+'px;'">
-				<view class="item">
+				<!-- <view class="item">
 					<myView id="scoreView" ref="scoreView"></myView>
 					<myView id="mockView" ref="mockView"></myView>
-				</view>
+				</view> -->
 				<!-- <view class="item-line"></view> -->
 				<zero-markdown-view :themeColor="themeColor" :markdown="content"></zero-markdown-view>
 			</view>
@@ -19,10 +19,12 @@
 			</template>
 			<!-- 如果希望其他view跟着页面滚动，可以放在z-paging标签内 -->
 			<view class="item" v-for="(item,index) in dataList" :key="index" @click="itemClick(item,index)">
-				<view class="item-title">{{item.title}}</view>
-				<view class="item-detail">{{item.publishTime}} {{item.tags}}</view>
+				<view class="item-title">
+					<um-texthighlight :text="item.summary" :keyword="item.keyWord"
+						color="red"></um-texthighlight>
+				</view>
 				<view class="item-line"></view>
-				<view class="item-detail">{{item.summary}}</view>
+				<view class="item-detail">{{item.publishTime}} {{item.tags}}</view>
 				<!-- <view class="item-detail">{{item.source}}</view> -->
 			</view>
 		</z-paging>
@@ -96,6 +98,9 @@
 				})
 				/*  #endif  */
 				/*  #ifdef  MP-WEIXIN  */
+				uni.showLoading({
+					title: '加载中'
+				});
 				wx.cloud.callFunction({ //调用云服务
 					name: "newslist", //云函数名称
 					data: {
@@ -106,14 +111,15 @@
 				}).then(res => {
 					// console.log(res.result)
 					this.$refs.paging.complete(JSON.parse(res.result));
+					uni.hideLoading();
 				}).catch(res => {
 					this.$refs.paging.complete(false);
+					uni.hideLoading();
 				})
 				/*  #endif  */
 			},
 			itemClick(item, index) {
 				// if (!item.tags.includes('政治') && !item.summary.includes('') && !item.summary.includes('')) {
-				this.$refs.popup.open();
 				setTimeout(() => {
 					this.$nextTick(() => {
 						// this.$refs.scoreView.$el.innerText = "评分结果：" + item.score + '/100'
@@ -126,9 +132,46 @@
 						// }).exec()
 						// scoreView.innerText = "评分结果：" + item.score + '/100'
 						// mockView.innerText = item.mock
-						this.$refs.scoreView.msg("参考打分：" + item.score + '/100')
-						this.$refs.mockView.msg(item.mock)
-						this.content = item.content
+
+						/*  #ifndef  MP-WEIXIN  */
+						getParamsRequest("/newsdetail", {
+							"id": item.id,
+						}, true, "POST").then(res => {
+							// this.$refs.scoreView.msg("参考打分：" + res.score + '/100')
+							// this.$refs.mockView.msg(res.mock)
+							this.content = res.markdown
+							this.$refs.popup.open();
+						}).catch(res => {
+							// this.$refs.scoreView.msg("参考打分：" + '??' + '/100')
+							// this.$refs.mockView.msg('数据获取失败')
+							this.content = ''
+						})
+						/*  #endif  */
+
+						/*  #ifdef  MP-WEIXIN  */
+						uni.showLoading({
+							title: '加载中'
+						});
+						wx.cloud.callFunction({ //调用云服务
+							name: "newsdetail", //云函数名称
+							data: {
+								id: item.id,
+							},
+						}).then(res => {
+							// console.log(res.result)
+							let result = JSON.parse(res.result)
+							// this.$refs.scoreView.msg("参考打分：" + result.score + '/100')
+							// this.$refs.mockView.msg(result.mock)
+							this.content = result.markdown
+							uni.hideLoading();
+							this.$refs.popup.open();
+						}).catch(res => {
+							// this.$refs.scoreView.msg("参考打分：" + '??' + '/100')
+							// this.$refs.mockView.msg('数据获取失败')
+							this.content = ''
+							uni.hideLoading();
+						})
+						/*  #endif  */
 					})
 					// console.log('点击了', item.title);
 				}, 100);
@@ -144,21 +187,21 @@
 		padding: 10px;
 		/* display: flex;
 		flex-direction: column; */
-		border-radius: 10px;
+		border-radius: 5px;
 		margin: 15px;
-		background-color: #f7f7f7;
-		box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.25);
+		background-color: #f8f8f8;
+		box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
 	}
 
 	.item-title {
 		font-size: 14px;
-		font-style: oblique;
 	}
 
 	.item-detail {
 		padding: 5rpx 15rpx;
 		/* border-radius: 10rpx; */
 		font-size: 12px;
+		font-style: oblique;
 		/* color: white; */
 		/* background-color: #007AFF; */
 	}
